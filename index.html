@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>OTC Scanner V2</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--line:#26344c;--muted:#93a4bd;--text:#eef4ff;--blue:#5aa7ff;--green:#38d996;--red:#ff6878;--amber:#f6c65b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#0b1220,#101a2b);font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text)}
+main{max-width:760px;margin:auto;padding:18px 14px 40px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.brand{font-size:21px;font-weight:800;letter-spacing:.2px}.sub{color:var(--muted);font-size:12px;margin-top:4px}.tag{border:1px solid #355171;color:#a9d4ff;border-radius:999px;padding:6px 10px;font-size:11px;white-space:nowrap}
+.panel{background:rgba(18,28,46,.96);border:1px solid var(--line);border-radius:16px;padding:15px;margin:12px 0;box-shadow:0 10px 28px #0002}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.label{font-size:12px;color:var(--muted);margin-bottom:6px}select,button{font:inherit;border-radius:10px;border:1px solid var(--line);padding:11px 12px;background:#0c1525;color:var(--text)}select{width:100%}.field{flex:1;min-width:135px}button{cursor:pointer;font-weight:750}button.primary{background:var(--blue);border-color:var(--blue);color:#06111f;min-width:110px}button:disabled{opacity:.6;cursor:wait}.signal{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#0b1424;border:1px solid var(--line);border-radius:12px;padding:12px}.value{font-size:20px;font-weight:800;margin-top:5px}.wait{color:var(--amber)}.call{color:var(--green)}.put{color:var(--red)}.small{font-size:12px;color:var(--muted);line-height:1.55}.strategy{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #26344c}.strategy:last-child{border:0}.dot{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:5px;flex-shrink:0}.status{font-size:12px;color:var(--amber)}.notice{border:1px solid #594d2b;background:#2b2516;color:#f5d88b;border-radius:12px;padding:11px;font-size:12px;line-height:1.5}.history{display:grid;gap:8px}.historyitem{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:8px 0;font-size:12px}.foot{text-align:center;color:var(--muted);font-size:11px;margin-top:18px}
+@media(min-width:560px){main{padding-top:26px}.brand{font-size:25px}.panel{padding:18px}}
+</style>
+</head>
+<body><main>
+<header class="top"><div><div class="brand">OTC SCANNER <span style="color:var(--blue)">V2</span></div><div class="sub">IQ Option · Binary · M1 expiry · M5 bias</div></div><span class="tag">NEW PROJECT</span></header>
+<section class="panel">
+<div class="row">
+ <div class="field"><div class="label">OTC PAIR</div><select id="symbol"><option value="">Choose supported OTC pair</option><option>Provider pair 1</option><option>Provider pair 2</option><option>Provider pair 3</option><option>Provider pair 4</option><option>Provider pair 5</option></select></div>
+ <div class="field"><div class="label">TRIGGER / EXPIRY</div><select disabled><option>M1 trigger · 1 minute expiry</option></select></div>
+</div>
+<div class="row" style="margin-top:12px"><button class="primary" id="scan">SCAN</button><span class="status" id="status">Data feed not connected</span></div>
+</section>
+<section class="panel">
+<div class="row between"><strong>Signal Analysis</strong><span class="tag">M5 → M1</span></div>
+<div class="signal" style="margin-top:12px">
+ <div class="metric"><div class="label">SIGNAL</div><div class="value wait" id="signal">WAIT</div></div>
+ <div class="metric"><div class="label">ENTRY WINDOW</div><div class="value" style="font-size:15px" id="window">Next M1 open</div></div>
+ <div class="metric"><div class="label">ENTRY PRICE</div><div class="value" id="entry">—</div></div>
+ <div class="metric"><div class="label">EXPIRY</div><div class="value">1 minute</div></div>
+</div>
+<div class="metric" style="margin-top:10px"><div class="label">ANALYSIS REASON</div><div id="reason" class="small">Connect a verified OTC data provider before signals can be evaluated.</div></div>
+</section>
+<section class="panel"><strong>Strategy Filters</strong>
+<div class="strategy"><span class="dot"></span><div><b>Engulfing</b><div class="small">Closed M1 candle must engulf the prior candle body in the signal direction.</div></div></div>
+<div class="strategy"><span class="dot"></span><div><b>Momentum Candle</b><div class="small">Body strength and wick checks; avoid weak or overextended candles.</div></div></div>
+<div class="strategy"><span class="dot"></span><div><b>Pullback Filter</b><div class="small">Check M5 bias and nearby support/resistance; conflicting or incomplete setups stay WAIT.</div></div></div>
+</section>
+<section class="panel"><div class="row between"><strong>Signal History</strong><button id="clear" style="padding:7px 10px;font-size:12px">CLEAR</button></div><div id="history" class="history small" style="margin-top:8px">No signals yet.</div></section>
+<div class="notice">Safety: the scanner currently stays on WAIT because no live data feed is configured. Provider pair names, M1/M5 candles, timestamps and free-plan limits must be verified. A signal is not a guarantee of winning.</div>
+<div class="foot">OTC Scanner V2 · Separate from your existing scanner · API keys belong on the backend only</div>
+</main>
+<script>
+const BACKEND_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
+const $ = id => document.getElementById(id);
+let historyItems = [];
+$("scan").addEventListener("click", async () => {
+  const symbol = $("symbol").value;
+  $("signal").textContent = "WAIT"; $("signal").className = "value wait";
+  $("entry").textContent = "—";
+  if (!symbol) { $("status").textContent = "Choose a pair first"; $("reason").textContent = "Select one of the five provider-supported OTC pairs."; return; }
+  if (BACKEND_URL.includes("YOUR-WORKER-NAME")) {
+    $("status").textContent = "Backend not configured";
+    $("reason").textContent = "No live signal generated. Deploy worker.js, configure a verified data provider, then set BACKEND_URL.";
+    return;
+  }
+  $("scan").disabled = true; $("status").textContent = "Checking closed candles…";
+  try {
+    const r = await fetch(`${BACKEND_URL}/candles?symbol=${encodeURIComponent(symbol)}&timeframes=M1,M5`);
+    const d = await r.json();
+    if (!r.ok || !d.ok || !d.candles) throw new Error(d.error || "No verified candle data returned");
+    // Strategy logic should only be enabled after the provider response is mapped and candle timestamps validated.
+    $("reason").textContent = "Data received, but strategy evaluation is not enabled until candle mapping and closed-candle validation are verified.";
+    $("status").textContent = "Data received · validation needed";
+  } catch (e) {
+    $("status").textContent = "API / backend error";
+    $("reason").textContent = e.message;
+  } finally { $("scan").disabled = false; }
+});
+$("clear").addEventListener("click", () => { historyItems=[]; renderHistory(); });
+function renderHistory(){ $("history").innerHTML = historyItems.length ? historyItems.map(x=>`<div class="historyitem"><span>${x.time} · ${x.pair}</span><b>${x.signal}</b></div>`).join("") : "No signals yet."; }
+</script></body></html>
